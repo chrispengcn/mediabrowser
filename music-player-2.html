@@ -1,0 +1,405 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>优雅的音乐播放器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
+  <!-- 编码检测库 -->
+  <script src="https://cdn.jsdelivr.net/npm/jschardet@3.0.0/dist/jschardet.min.js"></script>
+  <!-- 编码转换库 -->
+  <script src="https://cdn.jsdelivr.net/npm/iconv-lite@0.6.3/dist/iconv-lite.min.js"></script>
+  
+  <!-- 配置Tailwind自定义颜色和字体 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3b82f6',
+            secondary: '#10b981',
+            dark: '#1e293b',
+            light: '#f8fafc'
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .lyric-active {
+        @apply text-primary scale-105 font-medium;
+      }
+      .backdrop-blur {
+        backdrop-filter: blur(8px);
+      }
+      .player-shadow {
+        box-shadow: 0 10px 50px rgba(0, 0, 0, 0.15);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen font-inter text-light flex items-center justify-center p-4">
+  <!-- 播放器容器 -->
+  <div class="w-full max-w-md player-shadow rounded-3xl overflow-hidden bg-dark/60 backdrop-blur transition-all duration-300">
+    <!-- 专辑封面 -->
+    <div class="relative aspect-square overflow-hidden">
+      <img id="albumCover" src="https://picsum.photos/600/600?random=1" alt="专辑封面" class="w-full h-full object-cover">
+      <div class="absolute inset-0 bg-gradient-to-t from-dark/80 to-transparent"></div>
+      
+      <!-- 旋转动画（播放时） -->
+      <div id="spinner" class="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="w-16 h-16 rounded-full border-4 border-primary/30 border-t-primary animate-spin"></div>
+      </div>
+    </div>
+    
+    <!-- 歌曲信息 -->
+    <div class="p-6">
+      <h2 id="songTitle" class="text-[clamp(1.2rem,5vw,1.5rem)] font-bold text-center truncate">歌曲标题</h2>
+      <p id="songArtist" class="text-slate-400 text-center mt-1">艺术家</p>
+      
+      <!-- 进度条 -->
+      <div class="mt-6">
+        <div class="flex justify-between text-xs text-slate-500 mb-1">
+          <span id="currentTime">00:00</span>
+          <span id="totalTime">00:00</span>
+        </div>
+        <div class="h-1 bg-slate-700 rounded-full overflow-hidden cursor-pointer group" id="progressBar">
+          <div id="progress" class="h-full bg-primary w-0 transition-all duration-150"></div>
+          <div id="progressHandle" class="h-3 w-3 bg-primary rounded-full -mt-1 opacity-0 group-hover:opacity-100 transition-opacity transform -translate-x-1/2"></div>
+        </div>
+      </div>
+      
+      <!-- 控制按钮 -->
+      <div class="flex items-center justify-between mt-8">
+        <button class="text-slate-400 hover:text-light transition-colors">
+          <i class="fa fa-step-backward text-xl"></i>
+        </button>
+        <button class="text-slate-400 hover:text-light transition-colors">
+          <i class="fa fa-backward text-2xl"></i>
+        </button>
+        <button id="playPauseBtn" class="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all transform hover:scale-105">
+          <i id="playIcon" class="fa fa-play text-light text-xl ml-1"></i>
+          <i id="pauseIcon" class="fa fa-pause text-light text-xl hidden"></i>
+        </button>
+        <button class="text-slate-400 hover:text-light transition-colors">
+          <i class="fa fa-forward text-2xl"></i>
+        </button>
+        <button class="text-slate-400 hover:text-light transition-colors">
+          <i class="fa fa-step-forward text-xl"></i>
+        </button>
+      </div>
+      
+      <!-- 音量控制 -->
+      <div class="flex items-center justify-center mt-6 space-x-2">
+        <i class="fa fa-volume-up text-slate-400"></i>
+        <input type="range" id="volumeControl" min="0" max="100" value="80" class="w-24 accent-primary">
+      </div>
+    </div>
+    
+    <!-- 歌词区域 -->
+    <div class="px-6 pb-8 pt-2">
+      <h3 class="text-sm text-slate-500 mb-3 text-center">歌词 <span id="encodingInfo" class="text-xs opacity-70">(检测中...)</span></h3>
+      <div id="lyricContainer" class="h-40 overflow-hidden relative">
+        <div id="lyricWrapper" class="transition-transform duration-300 ease-out text-center">
+          <!-- 歌词将通过JS动态插入 -->
+          <div class="lyric-item py-1 text-slate-400">加载歌词中...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 歌词解析函数 - 解析LRC格式歌词
+    function parseLyrics(lrcText) {
+      const lines = lrcText.split('\n');
+      const lyrics = [];
+      
+      // 匹配时间戳的正则表达式 [mm:ss.xx]
+      const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/;
+      
+      lines.forEach(line => {
+        const match = timeRegex.exec(line);
+        if (match) {
+          // 解析时间 (转换为秒)
+          const minutes = parseInt(match[1], 10);
+          const seconds = parseInt(match[2], 10);
+          const milliseconds = parseInt(match[3], 10);
+          const time = minutes * 60 + seconds + milliseconds / 1000;
+          
+          // 获取歌词文本
+          const text = line.replace(timeRegex, '').trim();
+          
+          if (text) {
+            lyrics.push({ time, text });
+          }
+        } else if (line.trim() && !lyrics.some(l => l.text === line.trim())) {
+          // 添加没有时间戳的歌词行（如标题、艺术家等信息）
+          lyrics.push({ time: -1, text: line.trim() });
+        }
+      });
+      
+      // 按时间排序，但保持无时间戳的行在最前面
+      return lyrics.sort((a, b) => {
+        if (a.time === -1) return -1;
+        if (b.time === -1) return 1;
+        return a.time - b.time;
+      });
+    }
+    
+    // 格式化时间（秒 -> mm:ss）
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    // 检测并转换编码
+    async function decodeTextWithDetection(response) {
+      // 获取原始二进制数据
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = new Uint8Array(arrayBuffer);
+      
+      // 检测编码
+      const detectionResult = jschardet.detect(buffer);
+      const detectedEncoding = detectionResult.encoding;
+      const confidence = detectionResult.confidence;
+      
+      // 显示检测到的编码信息
+      const encodingInfoEl = document.getElementById('encodingInfo');
+      encodingInfoEl.textContent = `(编码: ${detectedEncoding}, 可信度: ${(confidence * 100).toFixed(0)}%)`;
+      
+      // 常用中文编码映射（jschardet可能返回的名称与iconv-lite不完全一致）
+      const encodingMap = {
+        'GB2312': 'gb2312',
+        'GBK': 'gbk',
+        'UTF-8': 'utf8',
+        'ISO-8859-1': 'iso-8859-1',
+        'windows-1252': 'win1252'
+      };
+      
+      // 尝试使用检测到的编码，若不支持则使用默认编码
+      const encoding = encodingMap[detectedEncoding] || detectedEncoding || 'utf8';
+      
+      try {
+        // 转换编码为UTF-8
+        return iconv.decode(buffer, encoding);
+      } catch (e) {
+        console.warn(`使用 ${encoding} 解码失败，尝试使用UTF-8解码`, e);
+        // 尝试使用UTF-8解码
+        try {
+          return new TextDecoder('utf-8').decode(buffer);
+        } catch (e2) {
+          console.error('所有解码尝试失败', e2);
+          return '';
+        }
+      }
+    }
+    
+    // 主播放器逻辑
+    document.addEventListener('DOMContentLoaded', () => {
+      // DOM元素
+      const playPauseBtn = document.getElementById('playPauseBtn');
+      const playIcon = document.getElementById('playIcon');
+      const pauseIcon = document.getElementById('pauseIcon');
+      const progressBar = document.getElementById('progressBar');
+      const progress = document.getElementById('progress');
+      const progressHandle = document.getElementById('progressHandle');
+      const currentTimeEl = document.getElementById('currentTime');
+      const totalTimeEl = document.getElementById('totalTime');
+      const volumeControl = document.getElementById('volumeControl');
+      const lyricContainer = document.getElementById('lyricContainer');
+      const lyricWrapper = document.getElementById('lyricWrapper');
+      const spinner = document.getElementById('spinner');
+      const songTitle = document.getElementById('songTitle');
+      const songArtist = document.getElementById('songArtist');
+      
+      // 示例歌曲和歌词（可以替换为包含不同编码的LRC文件测试）
+      const songUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+      // 这里使用一个可能包含不同编码的示例LRC文件
+      const lrcUrl = 'media/%E6%97%A5%E8%AF%AD/%E6%9C%80%E7%BB%88%E5%B9%BB%E6%83%B3X2/DISC1/02.real%20Emotion%28FF10-2%20Mix%29%28%E5%80%96%E7%94%B0%E4%BE%86%E6%9C%AA%29.lrc';
+      
+      // 初始化音频
+      const sound = new Howl({
+        src: [songUrl],
+        html5: true, // 对于较长的音频使用HTML5 Audio
+        volume: volumeControl.value / 100,
+        onload: () => {
+          totalTimeEl.textContent = formatTime(sound.duration());
+        },
+        onplay: () => {
+          playIcon.classList.add('hidden');
+          pauseIcon.classList.remove('hidden');
+          spinner.classList.remove('opacity-0');
+          requestAnimationFrame(updateProgress);
+        },
+        onpause: () => {
+          pauseIcon.classList.add('hidden');
+          playIcon.classList.remove('hidden');
+          spinner.classList.add('opacity-0');
+        },
+        onend: () => {
+          progress.style.width = '0%';
+          currentTimeEl.textContent = '00:00';
+          pauseIcon.classList.add('hidden');
+          playIcon.classList.remove('hidden');
+          spinner.classList.add('opacity-0');
+        }
+      });
+      
+      // 加载并解析歌词（带编码检测和转换）
+      fetch(lrcUrl)
+        .then(response => decodeTextWithDetection(response))
+        .then(lrcText => {
+          const lyrics = parseLyrics(lrcText);
+          renderLyrics(lyrics);
+          
+          // 尝试从歌词中提取歌曲信息
+          extractSongInfoFromLyrics(lyrics);
+        })
+        .catch(error => {
+          console.error('加载歌词失败:', error);
+          lyricWrapper.innerHTML = '<div class="lyric-item py-1 text-slate-400">无法加载歌词</div>';
+          document.getElementById('encodingInfo').textContent = '(加载失败)';
+        });
+      
+      // 从歌词中提取歌曲信息
+      function extractSongInfoFromLyrics(lyrics) {
+        let title = "未知歌曲";
+        let artist = "未知艺术家";
+        
+        // 查找LRC文件中的标题和艺术家信息
+        lyrics.forEach(lyric => {
+          if (lyric.time === -1) {
+            if (lyric.text.startsWith('ti:')) {
+              title = lyric.text.substring(3).trim();
+            } else if (lyric.text.startsWith('ar:')) {
+              artist = lyric.text.substring(3).trim();
+            }
+          }
+        });
+        
+        songTitle.textContent = title;
+        songArtist.textContent = artist;
+      }
+      
+      // 渲染歌词到页面
+      function renderLyrics(lyrics) {
+        lyricWrapper.innerHTML = '';
+        
+        // 过滤掉信息行，只显示歌词内容
+        const lyricLines = lyrics.filter(lyric => 
+          !(lyric.text.startsWith('ti:') || 
+            lyric.text.startsWith('ar:') || 
+            lyric.text.startsWith('al:') ||
+            lyric.text.startsWith('by:'))
+        );
+        
+        if (lyricLines.length === 0) {
+          lyricWrapper.innerHTML = '<div class="lyric-item py-1 text-slate-400">无歌词内容</div>';
+          return;
+        }
+        
+        lyricLines.forEach(lyric => {
+          const div = document.createElement('div');
+          div.className = 'lyric-item py-1 text-slate-400 transition-all duration-300';
+          div.textContent = lyric.text;
+          div.dataset.time = lyric.time;
+          lyricWrapper.appendChild(div);
+        });
+      }
+      
+      // 更新进度条和当前时间
+      function updateProgress() {
+        if (sound.playing()) {
+          const currentTime = sound.seek();
+          const duration = sound.duration();
+          const progressPercent = (currentTime / duration) * 100;
+          
+          progress.style.width = `${progressPercent}%`;
+          progressHandle.style.left = `${progressPercent}%`;
+          currentTimeEl.textContent = formatTime(currentTime);
+          
+          // 同步歌词
+          syncLyrics(currentTime);
+          
+          requestAnimationFrame(updateProgress);
+        }
+      }
+      
+      // 同步歌词显示
+      function syncLyrics(currentTime) {
+        const lyricItems = document.querySelectorAll('.lyric-item');
+        let activeIndex = -1;
+        
+        // 找到当前应该显示的歌词索引
+        for (let i = 0; i < lyricItems.length; i++) {
+          const lyricTime = parseFloat(lyricItems[i].dataset.time);
+          if (lyricTime === -1) continue; // 跳过无时间戳的行
+          
+          const nextTime = i + 1 < lyricItems.length 
+            ? parseFloat(lyricItems[i + 1].dataset.time) || Infinity
+            : Infinity;
+          
+          if (currentTime >= lyricTime && currentTime < nextTime) {
+            activeIndex = i;
+            break;
+          }
+        }
+        
+        // 更新歌词高亮和滚动
+        if (activeIndex !== -1) {
+          lyricItems.forEach((item, index) => {
+            if (index === activeIndex) {
+              item.classList.add('lyric-active');
+            } else {
+              item.classList.remove('lyric-active');
+            }
+          });
+          
+          // 滚动到当前歌词（居中显示）
+          const containerHeight = lyricContainer.clientHeight;
+          const itemHeight = lyricItems[0].clientHeight;
+          const scrollPosition = activeIndex * itemHeight - containerHeight / 2 + itemHeight / 2;
+          lyricWrapper.style.transform = `translateY(-${scrollPosition}px)`;
+        }
+      }
+      
+      // 播放/暂停按钮点击事件
+      playPauseBtn.addEventListener('click', () => {
+        if (sound.playing()) {
+          sound.pause();
+        } else {
+          sound.play();
+        }
+      });
+      
+      // 进度条点击事件
+      progressBar.addEventListener('click', (e) => {
+        const rect = progressBar.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        const seekTime = percent * sound.duration();
+        sound.seek(seekTime);
+      });
+      
+      // 音量控制事件
+      volumeControl.addEventListener('input', () => {
+        sound.volume(volumeControl.value / 100);
+      });
+    });
+  </script>
+</body>
+</html>
+
+
+
