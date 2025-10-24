@@ -2,6 +2,8 @@
 
 A lightweight, Python/PHP-powered static site generator focused on **organizing and serving media files** (e.g., images, documents, videos) with an intuitive web interface. This project combines Python for local file structure generation and PHP for web-based management, making it easy to deploy on any PHP-enabled server.
 
+*Author: Chrispeng |&#x20;*[Off](https://www.shopaii.net)[icial](https://www.shopaii.net)[ Site](https://www.shopaii.net)*&#x20;|&#x20;*[Alter](https://shopaii.com)[nativ](https://shopaii.com)[e Dom](https://shopaii.com)[ain](https://shopaii.com)*&#x20;|&#x20;*[G](https://github.com/chrispengcn/mediabrowser)[itHub](https://github.com/chrispengcn/mediabrowser)[ Repo](https://github.com/chrispengcn/mediabrowser)
+
 ## Project Overview
 
 This tool solves the problem of managing unstructured media files by creating a **searchable, browsable static index** of your media library. It works in two key ways:
@@ -13,6 +15,8 @@ This tool solves the problem of managing unstructured media files by creating a 
 2. **PHP Web Interface**: Provides a browser-based tool (`edit.php`) to re-generate the JSON index (no local Python required on the server) and serve the media files via a static web interface.
 
 All generated content is static—no databases, no dynamic server-side processing (beyond JSON generation)—making it fast, secure, and easy to host.
+
+*For updates, issues, or contributions, visit the&#x20;*[offi](https://github.com/chrispengcn/mediabrowser)[cial](https://github.com/chrispengcn/mediabrowser)[ GitHu](https://github.com/chrispengcn/mediabrowser)[b rep](https://github.com/chrispengcn/mediabrowser)[o](https://github.com/chrispengcn/mediabrowser)*.*
 
 ## Key Features
 
@@ -81,16 +85,18 @@ Follow these steps to set up and use the project.
 
 ### 1. Clone/Download the Project
 
-First, get the project files onto your local machine or server:
+First, get the project files onto your local machine or server (clone directly from the official GitHub repo):
 
 
 
 ```
-\# Clone (if using Git)
+\# Clone from the official GitHub repo (recommended)
 
-git clone https://github.com/your-username/your-repo-name.git
+git clone https://github.com/chrispengcn/mediabrowser.git
 
-\# Or download the ZIP file and extract it
+\# Or download the ZIP file from GitHub:
+
+\# https://github.com/chrispengcn/mediabrowser/archive/refs/heads/main.zip
 ```
 
 ### 2. Add Your Media Files
@@ -128,7 +134,7 @@ Run the Python script to generate the JSON file offline:
 ```
 \# Navigate to the project root
 
-cd your-project/
+cd mediabrowser/
 
 \# Run the Python script
 
@@ -147,9 +153,9 @@ If you’re on a server without Python, use the web-based `edit.php`:
 
 
 
-1. Upload the project to your PHP-enabled server (e.g., via FTP, cPanel).
+1. Upload the `mediabrowser/` folder to your PHP-enabled server (e.g., via FTP, cPanel).
 
-2. Open a browser and navigate to `https://your-domain.com/your-project/edit.php`.
+2. Open a browser and navigate to `https://your-domain.com/mediabrowser/edit.php`.
 
 3. Click the **"Generate File List"** button.
 
@@ -177,9 +183,9 @@ When you add/remove/edit files in `media/`, re-generate `files.json` to reflect 
 
 
 
-* **Local**: Re-run `python ``generate_index.py`.
+* **Local**: Re-run `python ``generate_index.py` in the project root.
 
-* **Server**: Visit `edit.php` and click "Generate File List" again.
+* **Server**: Visit `https://your-domain.com/mediabrowser/edit.php` and click "Generate File List" again.
 
 ### Securing Your Media (Optional)
 
@@ -209,18 +215,18 @@ Deny from all
 
 * **Styling**: Modify `index.html` or `edit.php` to update colors/fonts (uses Tailwind CSS—edit classes like `bg-gray-50` or `text-primary`).
 
-* **Features**: Add search, filtering, or file previews to `index.html` by extending the JavaScript that parses `files.json`.
+* **Features**: Add search, filtering, or file previews to `index.html` by extending the JavaScript that parses `files.json`. For examples, check the [GitHub repo](https://github.com/chrispengcn/mediabrowser) for community contributions.
 
 ## Troubleshooting
 
 
 
-| Issue                                               | Solution                                                                                                         |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `edit.php` shows "Directory ./media does not exist" | Create a `media/` folder in the project root and add files to it.                                                |
-| "Permission denied" when saving `files.json`        | Ensure the project root directory has **write permissions** (e.g., `chmod 755` for the folder on Linux servers). |
-| Python script fails to run                          | Verify Python 3.6+ is installed (`python --version` or `python3 --version`).                                     |
-| Files not appearing in `index.html`                 | Re-generate `files.json` to include new files, and clear your browser cache.                                     |
+| Issue                                               | Solution                                                                                                                                                                       |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `edit.php` shows "Directory ./media does not exist" | Create a `media/` folder in the project root and add files to it.                                                                                                              |
+| "Permission denied" when saving `files.json`        | Ensure the project root directory has **write permissions** (e.g., `chmod 755 mediabrowser/` for Linux servers).                                                               |
+| Python script fails to run                          | Verify Python 3.6+ is installed (`python --version` or `python3 --version`). If issues persist, open an [issue on GitHub](https://github.com/chrispengcn/mediabrowser/issues). |
+| Files not appearing in `index.html`                 | Re-generate `files.json` to include new files, and clear your browser cache.                                                                                                   |
 
 ## Maintenance
 
@@ -228,28 +234,39 @@ Deny from all
 
 * **Backup&#x20;**`files.json`: If you modify the `media/` directory frequently, back up `files.json` to avoid re-scanning large libraries.
 
-* **Update Dependencies**: Periodically update Tailwind CSS (via CDN in `edit.php`/`index.html`) or Font Awesome to get security fixes and new icons.
+* **Update Dependencies**: Periodically update Tailwind CSS (via CDN in `edit.php`/`index.html`) or Font Awesome to get security fixes and new icons. Check the [GitHub repo](https://github.com/chrispengcn/mediabrowser) for dependency update notes.
 
 * **Clean Up Old Files**: Delete unused files from `media/` and re-generate `files.json` to keep the index lean.
 
+## Author
+
+
+
+* **Name**: Chrispeng
+
+* **Official Sites**: [https://www.shopaii.net](https://www.shopaii.net) | [https://shopaii.com](https://shopaii.com)
+
+* **GitHub**: [https://github.com/chrispengcn/mediabrowser](https://github.com/chrispengcn/mediabrowser)
+
+  *For bug reports, feature requests, or contributions, please use the GitHub repo’s issue tracker or pull request system.*
+
 ## License
 
-This project is licensed under the **MIT License**—see the [LICENSE](LICENSE) file for details (add a `LICENSE` file to your repo if using this).
+This project is licensed under the **MIT License**—see the [LICENSE](https://github.com/chrispengcn/mediabrowser/blob/main/LICENSE) file in the GitHub repo for details.
 
 ## Contributing
 
-If you’d like to improve the project:
+We welcome contributions to improve the project! To contribute:
 
 
 
-1. Fork the repository.
+1. Fork the [GitHub repo](https://github.com/chrispengcn/mediabrowser).
 
 2. Create a feature branch (`git checkout -b feature/your-feature`).
 
-3. Commit your changes (`git commit -m "Add search functionality"`).
+3. Commit your changes with a clear message (`git commit -m "Add: File preview for images"`).
 
 4. Push to the branch (`git push origin feature/your-feature`).
 
-5. Open a Pull Request.
+5. Open a Pull Request on GitHub—we’ll review your changes promptly!
 
-> （注：文档部分内容可能由 AI 生成）
